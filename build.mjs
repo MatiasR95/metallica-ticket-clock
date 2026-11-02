@@ -15,9 +15,11 @@ const OUT = join(DATA, 'out')
 mkdirSync(OUT, { recursive: true })
 
 const hist = JSON.parse(readFileSync(join(DATA, 'history.json'), 'utf8'))
-const pollDir = join(DATA, 'polls')
-const polls = (existsSync(pollDir) ? readdirSync(pollDir).filter((f) => f.endsWith('.jsonl')).sort() : [])
-  .flatMap((f) => readFileSync(join(pollDir, f), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)))
+// data/polls/ is the cloud collector (TicketSmarter), data/tl/polls/ the laptop one (TrackaLacker).
+const polls = [join(DATA, 'polls'), join(DATA, 'tl', 'polls')]
+  .flatMap((d) => (existsSync(d) ? readdirSync(d).filter((f) => f.endsWith('.jsonl')).map((f) => join(d, f)) : []))
+  .flatMap((f) => readFileSync(f, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)))
+  .sort((a, b) => a.t.localeCompare(b.t))
 
 // Sphere's floor is all standing room; sites name it differently.
 const isFloor = (z) => /floor|general admission|gaflo/i.test(z)
@@ -124,8 +126,9 @@ for (const [show, p] of latest) {
   }
 }
 // TicketSmarter: whole levels and the middle sections from its section list (prices with its service fee).
-for (const p of polls) {
-  if (!p.sections || !latest.has(p.show) || p.t !== latest.get(p.show).t) continue
+const latestSections = new Map()
+for (const p of polls) if (p.sections && showStart[p.show]) latestSections.set(p.show, p)
+for (const p of latestSections.values()) {
   const low = (test) => money(Math.min(...Object.entries(p.sections).filter(([k]) => test(k)).map(([, v]) => v[0] ?? Infinity)))
   const mid = (keys) => low((k) => keys.includes(k))
   sites.push({

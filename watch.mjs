@@ -102,23 +102,33 @@ async function pollSections(show) {
 // Official packages for Feb 4 + 6: Vibee (2 shows + hotel) and SUPER enhanced experiences.
 const VIBEE = 'https://vibee.com/events/metallica-2.4.27-2.6.27-6C593C83'
 const SUPER = 'https://superfan.live/artist/metallicasphere/'
-async function pollPackages() {
-  const out = { vibee: null, super: null }
-  try {
-    const html = await get(VIBEE)
-    const e = JSON.parse(html.match(/<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>/s)[1]).props.pageProps.event
-    // Vibee decides "Sold Out" in the browser from these fields (rooms and tickets both show stock while
-    // the page says Sold Out), so keep a fingerprint of all of them: any change means "go look".
-    const tickets = e.tickets.map((t) => [t.name, (t.tiers ?? []).map((x) => `${x.onSale ? 1 : 0}:${x.quantityAvailable}:${x.price}`).join(',')])
-    const rooms = e.hotels.flatMap((h) => (h.rooms ?? []).map((r) => `${r.onSale ? 1 : 0}:${r.quantityAvailable}:${(r.tiers ?? []).flatMap((x) => (x.prices ?? []).map((p) => p.quantityAvailable)).join('/')}`))
-    out.vibee = { fingerprint: createHash('sha1').update(JSON.stringify([tickets, rooms])).digest('hex').slice(0, 12), tickets }
-  } catch (err) { out.vibee = { error: err.message } }
-  try {
-    const html = await get(SUPER)
-    const card = html.split('class="tour-date-card"').find((c) => /<h3[^>]*>\s*weekend eight\s*</i.test(c))
-    out.super = card ? { available: !/sold-out/.test(card) } : { error: 'weekend eight card not found' }
-  } catch (err) { out.super = { error: err.message } }
-  return out
+async function pollVibee() {
+  const html = await get(VIBEE)
+  const e = JSON.parse(html.match(/<script id="__NEXT_DATA__" type="application\/json">(.*?)<\/script>/s)[1]).props.pageProps.event
+  // Vibee decides "Sold Out" in the browser from these fields (rooms and tickets both show stock while
+  // the page says Sold Out), so keep a fingerprint of all of them: any change means "go look".
+  const tickets = e.tickets.map((t) => [t.name, (t.tiers ?? []).map((x) => `${x.onSale ? 1 : 0}:${x.quantityAvailable}:${x.price}`).join(',')])
+  const rooms = e.hotels.flatMap((h) => (h.rooms ?? []).map((r) => `${r.onSale ? 1 : 0}:${r.quantityAvailable}:${(r.tiers ?? []).flatMap((x) => (x.prices ?? []).map((p) => p.quantityAvailable)).join('/')}`))
+  return { fingerprint: createHash('sha1').update(JSON.stringify([tickets, rooms])).digest('hex').slice(0, 12), tickets }
+}
+async function pollSuper() {
+  const html = await get(SUPER)
+  const card = html.split('class="tour-date-card"').find((c) => /<h3[^>]*>\s*weekend eight\s*</i.test(c))
+  if (!card) throw new Error('weekend eight card not found')
+  return { available: !/sold-out/.test(card) }
+}
+
+// Keeps the latest state and when it last changed, for the twice-daily watcher to alert on.
+// A failed fetch keeps the last good state rather than counting as a change.
+async function trackState(file, key, poll, t) {
+  const prev = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : null
+  let cur
+  try { cur = await poll() } catch (e) { cur = prev?.[key] ? { ...prev[key], error: e.message } : { error: e.message } }
+  if (!cur.error) delete cur.error
+  const sig = (s) => JSON.stringify(s?.fingerprint ?? s?.available ?? null)
+  const changed = !prev || (!cur.error && sig(prev[key]) !== sig(cur))
+  writeFileSync(file, JSON.stringify({ t, [key]: cur, changedAt: changed ? t : prev.changedAt }, null, 1))
+  return `${key} ${cur.error ?? cur.fingerprint ?? (cur.available ? 'OPEN' : 'sold out')}${changed && prev ? ' (CHANGED)' : ''}`
 }
 
 async function pullHistory(listing) {
@@ -132,13 +142,19 @@ async function pullHistory(listing) {
   ])
 }
 
+// Two collectors share one git repo and never write the same file:
+//   --part cloud   (GitHub Actions) TicketSmarter shows + passes, SUPER   -> data/polls/, data/packages.json, data/run.log
+//   --part laptop  (Matías' laptop) TrackaLacker + change logs, Vibee     -> data/tl/, data/history.json
+// TrackaLacker and Vibee answer 403 to GitHub's servers, so they can only come from the laptop.
 async function main() {
+  const arg = (name) => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : null }
+  const part = arg('--part') ?? 'cloud'
   const withHistory = process.argv.includes('--history')
-  const budgetArg = process.argv.indexOf('--budget')
-  const budgetMs = budgetArg > 0 ? Number(process.argv[budgetArg + 1]) * 1000 : Infinity
+  const budgetMs = arg('--budget') ? Number(arg('--budget')) * 1000 : Infinity
   const startedAt = Date.now()
   const toPull = []
-  mkdirSync(DATA, { recursive: true })
+  const dir = part === 'laptop' ? join(DATA, 'tl') : DATA
+  mkdirSync(dir, { recursive: true })
   const t = new Date().toISOString()
   const histFile = join(DATA, 'history.json')
   const hist = existsSync(histFile) ? JSON.parse(readFileSync(histFile, 'utf8')) : { listings: {} }
@@ -148,7 +164,16 @@ async function main() {
   for (const show of SHOWS) {
     // A show's TrackaLacker page disappears soon after the event, so stop asking a few hours later.
     if (Date.now() > Date.parse(show.start) + 6 * 3600e3) continue
-    const line = { t, show: show.id, src: 'trackalacker', listings: null, ts: null }
+    if (part === 'cloud') {
+      const line = { t, show: show.id, src: 'ticketsmarter', ts: null, sections: null }
+      try { line.ts = await pollTicketSmarter(show.ts) } catch (e) { log.push(`${show.id} ticketsmarter: ${e.message}`) }
+      try { line.sections = await pollSections(show) } catch (e) { log.push(`${show.id} sections: ${e.message}`) }
+      if (line.sections) log.push(`${show.id}: ${Object.keys(line.sections).length} sections`)
+      lines.push(line)
+      await sleep(800)
+      continue
+    }
+    const line = { t, show: show.id, src: 'trackalacker', listings: null }
     try {
       const rows = await pollTrackaLacker(show)
       line.listings = rows.map((r) => [r.id, r.price, r.inv])
@@ -165,17 +190,11 @@ async function main() {
       const min = Math.min(...live.map((r) => r.price))
       log.push(`${show.id}: ${live.length}/${rows.length} listings live, from $${min}`)
     } catch (e) { log.push(`${show.id} trackalacker: ${e.message}`) }
-    try {
-      line.ts = await pollTicketSmarter(show.ts)
-    } catch (e) { log.push(`${show.id} ticketsmarter: ${e.message}`) }
-    try {
-      line.sections = await pollSections(show)
-    } catch (e) { log.push(`${show.id} sections: ${e.message}`) }
-    lines.push(line)
+    if (line.listings) lines.push(line)
     await sleep(800)
   }
   for (const p of PASSES) {
-    if (Date.now() > Date.parse(p.start)) continue
+    if (part !== 'cloud' || Date.now() > Date.parse(p.start)) continue
     try {
       const line = { t, show: p.id, src: 'ticketsmarter', ts: await pollTicketSmarter(p.ts), sections: null }
       // A pass listing is one seat for both nights, priced as one ticket.
@@ -206,41 +225,34 @@ async function main() {
   }
 
   if (Date.now() < Date.parse(SHOWS.at(-1).start)) {
-    const pk = await pollPackages()
-    // packages.json holds the latest state and when it last changed, for the twice-daily watcher to alert on.
-    const pkFile = join(DATA, 'packages.json')
-    const prev = existsSync(pkFile) ? JSON.parse(readFileSync(pkFile, 'utf8')) : null
-    // A failed fetch keeps the last good state rather than counting as a change.
-    if (pk.vibee.error && prev?.vibee?.fingerprint) pk.vibee = { ...prev.vibee, error: pk.vibee.error }
-    if (pk.super.error && prev?.super && 'available' in prev.super) pk.super = { ...prev.super, error: pk.super.error }
-    const state = (p) => `${p?.vibee?.fingerprint}|${p?.super?.available}`
-    const changed = !prev || state(prev) !== state(pk)
-    writeFileSync(pkFile, JSON.stringify({ t, ...pk, changedAt: changed ? t : prev.changedAt }, null, 1))
-    log.push(`packages: vibee ${pk.vibee.error ?? pk.vibee.fingerprint}, super ${pk.super.error ?? (pk.super.available ? 'OPEN' : 'sold out')}${changed && prev ? ' (CHANGED)' : ''}`)
+    if (part === 'cloud') log.push(await trackState(join(DATA, 'packages.json'), 'super', pollSuper, t))
+    else log.push(await trackState(join(DATA, 'tl', 'vibee.json'), 'vibee', pollVibee, t))
   }
 
   if (lines.length) {
-    mkdirSync(join(DATA, 'polls'), { recursive: true })
-    appendFileSync(join(DATA, 'polls', `${t.slice(0, 7)}.jsonl`), lines.map((l) => JSON.stringify(l)).join('\n') + '\n')
+    mkdirSync(join(dir, 'polls'), { recursive: true })
+    appendFileSync(join(dir, 'polls', `${t.slice(0, 7)}.jsonl`), lines.map((l) => JSON.stringify(l)).join('\n') + '\n')
   }
-  // A history run takes ~15 min and a poll can finish inside it, so merge with the file as it is now.
-  const disk = existsSync(histFile) ? JSON.parse(readFileSync(histFile, 'utf8')) : { listings: {} }
-  for (const [id, h] of Object.entries(disk.listings)) {
-    const mine = hist.listings[id]
-    if (!mine) { hist.listings[id] = h; continue }
-    const seen = new Set(mine.changes.map((c) => c[0]))
-    for (const c of h.changes) if (!seen.has(c[0])) mine.changes.push(c)
-    mine.changes.sort((a, b) => a[0].localeCompare(b[0]))
+  if (part === 'laptop') {
+    // A slow run can overlap the next one, so merge with the file as it is now.
+    const disk = existsSync(histFile) ? JSON.parse(readFileSync(histFile, 'utf8')) : { listings: {} }
+    for (const [id, h] of Object.entries(disk.listings)) {
+      const mine = hist.listings[id]
+      if (!mine) { hist.listings[id] = h; continue }
+      const seen = new Set(mine.changes.map((c) => c[0]))
+      for (const c of h.changes) if (!seen.has(c[0])) mine.changes.push(c)
+      mine.changes.sort((a, b) => a[0].localeCompare(b[0]))
+    }
+    writeFileSync(histFile, JSON.stringify(hist))
   }
-  writeFileSync(histFile, JSON.stringify(hist))
-  appendFileSync(join(DATA, 'run.log'), `${t} ${withHistory ? '[history] ' : ''}${log.join(' | ')}\n`)
+  appendFileSync(join(dir, 'run.log'), `${t} ${withHistory ? '[history] ' : ''}${log.join(' | ')}\n`)
   console.log(log.join('\n'))
 }
 
 // build.mjs imports SHOWS from here; only collect when run directly.
 if (process.argv[1] && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
   main().catch((e) => {
-    appendFileSync(join(DATA, 'run.log'), `${new Date().toISOString()} FATAL ${e.message}\n`)
+    appendFileSync(join(DATA, process.argv.includes('laptop') ? 'tl/run.log' : 'run.log'), `${new Date().toISOString()} FATAL ${e.message}\n`)
     console.error(e)
     process.exit(1)
   })
