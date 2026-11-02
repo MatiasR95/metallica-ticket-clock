@@ -1,0 +1,545 @@
+<meta name="dash-one-writer">
+<style>
+  .tc { display: grid; gap: var(--cds-gap-lg); font-family: var(--font-anthropic-sans); max-width: 72rem; margin-inline: auto; }
+  .tc-head { display: grid; gap: var(--cds-gap-sm); justify-items: start; }
+  .tc-head h1 { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); margin: 0; text-wrap: balance; }
+  .tc-lede { margin: 0; color: var(--color-fg); max-width: 62ch; line-height: 1.5; }
+  .tc-lede b, .tc-tile b, .tc-note b { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .tc-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: var(--cds-gap-md); }
+  .tc-tile { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-md) var(--cds-pad-lg); display: grid; gap: var(--cds-gap-xs); }
+  .tc-tile.is-trip { border-color: var(--color-fg-muted); }
+  .tc-tile-label { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); text-transform: uppercase; letter-spacing: .06em; }
+  .tc-big { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: var(--cds-font-size-title); font-variant-numeric: tabular-nums; line-height: 1.1; }
+  .tc-sub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; line-height: 1.4; }
+  .tc-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr)); gap: var(--cds-gap-md); }
+  .tc-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: grid; gap: var(--cds-gap-sm); min-width: 0; align-content: start; }
+  .tc-card.wide { grid-column: 1 / -1; }
+  .tc-card h2 { font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); margin: 0; }
+  .tc-card p { margin: 0; color: var(--color-fg-muted); font-size: var(--cds-font-size-caption); line-height: 1.5; max-width: 70ch; }
+  .tc-row { display: flex; flex-wrap: wrap; gap: var(--cds-gap-sm); align-items: center; justify-content: space-between; }
+  .tc-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); overflow: hidden; max-width: 100%; }
+  .tc-seg button { font: inherit; font-size: var(--cds-font-size-caption); background: transparent; color: var(--color-fg-muted); border: 0; padding: var(--cds-pad-xs) var(--cds-pad-sm); cursor: pointer; transition: background var(--cds-dur-fast, .15s), color var(--cds-dur-fast, .15s); }
+  .tc-seg button + button { border-left: 1px solid var(--color-border-line); }
+  .tc-seg button:hover { color: var(--color-fg); }
+  .tc-seg button[aria-pressed="true"] { background: var(--color-bg); color: var(--color-fg); }
+  .tc-seg button:focus-visible { outline: 2px solid var(--color-fg); outline-offset: -2px; }
+  .tc-zone button { font-size: var(--cds-font-size-body); padding: var(--cds-pad-xs) var(--cds-pad-md); }
+  .tc-chart { position: relative; min-height: 18rem; }
+  .tc-chart.short { min-height: 13rem; }
+  .tc-chart svg { display: block; overflow: visible; }
+  .tc-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); font-variant-numeric: tabular-nums; white-space: nowrap; z-index: 2; }
+  .tc-tip .d { color: var(--cds-text-secondary); }
+  .tc-tip .sw { display: inline-block; width: .6rem; height: .6rem; border-radius: 2px; margin-right: .35rem; vertical-align: -1px; }
+  .tc-legend { display: flex; flex-wrap: wrap; gap: var(--cds-gap-md); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .tc-legend span::before { content: ""; display: inline-block; width: .9rem; height: 2px; margin-right: .4rem; vertical-align: middle; background: var(--sw); }
+  .tc-legend span.dashed::before { background: none; height: 0; border-top: 2px dashed var(--color-fg-muted); }
+  .tc-table-wrap { overflow-x: auto; }
+  .tc-table { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-body); font-variant-numeric: tabular-nums; }
+  .tc-table th, .tc-table td { text-align: right; padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); white-space: nowrap; }
+  .tc-table th:first-child, .tc-table td:first-child { text-align: left; }
+  #sites .tc-table th:nth-child(2), #sites .tc-table td:nth-child(2) { text-align: left; }
+  .tc-table th { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-weight: var(--cds-font-weight-medium); }
+  .tc-table td.down { color: var(--color-ok); }
+  .tc-table td.up { color: var(--color-bad); }
+  .tc-notes { display: grid; gap: var(--cds-gap-xs); font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); line-height: 1.5; max-width: 75ch; }
+  .tc-notes p { margin: 0; }
+  [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+  [data-dash-source-state=empty] { color: transparent; }
+</style>
+
+<div class="tc">
+  <header class="tc-head">
+    <h1>Metallica Sphere ticket clock</h1>
+    <p class="tc-lede">Resale prices for GA floor and the middle five sections of the 100 and 200 levels, logged every 30 minutes up to showtime for the last 2026 Vegas weekend, so the February 4 and 6 tickets get bought at the right moment. Showing <b data-draw="zonename" data-source="zones">—</b>. On Nov 7 the whole level has moved <b data-draw="nov7move" data-source="checkpoints">—</b> since the first checkpoint. On Feb 6 the cheapest ticket here is <b data-draw="feb6now" data-source="zones">—</b>, <b data-draw="feb6days" data-source="zones">—</b> days before the show.</p>
+    <div class="tc-seg tc-zone" role="group" aria-label="Seat zone">
+      <button type="button" data-zone="ga" aria-pressed="true">GA floor</button>
+      <button type="button" data-zone="l100" aria-pressed="false">100s · 104–108</button>
+      <button type="button" data-zone="l200" aria-pressed="false">200s · 204–208</button>
+    </div>
+  </header>
+
+  <section class="tc-tiles" aria-label="Cheapest ticket in the chosen zone right now">
+    <div class="tc-tile">
+      <span class="tc-tile-label">Thu Nov 5</span>
+      <span class="tc-big" data-draw="tile" data-show="2026-11-05" data-source="zones">—</span>
+      <span class="tc-sub" data-draw="tilesub" data-show="2026-11-05" data-source="zones">—</span>
+    </div>
+    <div class="tc-tile">
+      <span class="tc-tile-label">Sat Nov 7</span>
+      <span class="tc-big" data-draw="tile" data-show="2026-11-07" data-source="zones">—</span>
+      <span class="tc-sub" data-draw="tilesub" data-show="2026-11-07" data-source="zones">—</span>
+    </div>
+    <div class="tc-tile is-trip">
+      <span class="tc-tile-label">Thu Feb 4 · your show</span>
+      <span class="tc-big" data-draw="tile" data-show="2027-02-04" data-source="zones">—</span>
+      <span class="tc-sub" data-draw="tilesub" data-show="2027-02-04" data-source="zones">—</span>
+    </div>
+    <div class="tc-tile is-trip">
+      <span class="tc-tile-label">Sat Feb 6 · your show</span>
+      <span class="tc-big" data-draw="tile" data-show="2027-02-06" data-source="zones">—</span>
+      <span class="tc-sub" data-draw="tilesub" data-show="2027-02-06" data-source="zones">—</span>
+    </div>
+  </section>
+
+  <div class="tc-grid">
+    <section class="tc-card wide" id="countdown">
+      <h2>Cheapest ticket as the show gets close</h2>
+      <p>Solid: cheapest anywhere in the level across StubHub, SeatGeek, Viagogo, Vivid Seats and Gametime, hour by hour. Dashed: cheapest in the middle five sections on TicketSmarter, every 30 minutes since Nov 2. For GA floor both lines are the floor. The right edge is 8:30 PM Pacific on show night.</p>
+      <div class="tc-legend">
+        <span data-show="2026-11-05">Thu Nov 5</span>
+        <span data-show="2026-11-07">Sat Nov 7</span>
+        <span class="dashed">Middle sections</span>
+      </div>
+      <div class="tc-chart" data-draw="countdown" data-source="curve"></div>
+    </section>
+
+    <section class="tc-card wide" id="checkpoints">
+      <h2>Price by time before the show</h2>
+      <p>Cheapest ticket in the chosen zone at each checkpoint. Change compares with the first checkpoint that has a price in that column. Green is cheaper.</p>
+      <div class="tc-table-wrap">
+        <table class="tc-table" data-source="checkpoints" data-row-key="zone,checkpoint">
+          <thead><tr>
+            <th data-field="checkpoint">Before the show</th>
+            <th data-field="nov5_level">Nov 5 level</th>
+            <th data-field="nov5_mid">Nov 5 middle</th>
+            <th data-field="nov7_level">Nov 7 level</th>
+            <th data-field="nov7_level_ch">Change</th>
+            <th data-field="nov7_mid">Nov 7 middle</th>
+            <th data-field="nov7_mid_ch">Change</th>
+          </tr></thead>
+          <tbody data-draw="checkpoints"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="tc-card wide" id="pass">
+      <h2>2-day pass or two single nights</h2>
+      <p>You're going to both shows. A 2-day pass is one seat for both nights. Compared with the cheapest single ticket for each night in the chosen zone, all from the same TicketSmarter reading (fees included). The singles can be different seats on each night.</p>
+      <div class="tc-table-wrap">
+        <table class="tc-table" data-source="pass_compare" data-row-key="weekend,zone">
+          <thead><tr>
+            <th data-field="weekend">Weekend</th>
+            <th data-field="pass">2-day pass</th>
+            <th data-field="pass_pair">Pass, 2 together</th>
+            <th data-field="day1">Night 1</th>
+            <th data-field="day2">Night 2</th>
+            <th data-field="singles">Both singles</th>
+            <th data-field="saving">Pass saves</th>
+          </tr></thead>
+          <tbody data-draw="passtable"></tbody>
+        </table>
+      </div>
+      <div class="tc-legend">
+        <span data-show="2026-11-07">Nov 5 + 7</span>
+        <span data-show="2027-02-06">Feb 4 + 6</span>
+      </div>
+      <div class="tc-chart short" data-draw="passchart" data-source="pass_compare"></div>
+      <p>How much cheaper the pass is than the two singles, by days before the first show. Below zero, the singles are cheaper.</p>
+    </section>
+
+    <section class="tc-card wide" id="longview">
+      <div class="tc-row">
+        <h2>The long view, one site at a time</h2>
+        <div class="tc-seg tc-site" role="group" aria-label="Site">
+          <button type="button" data-site="VividSeats" aria-pressed="true">Vivid Seats</button>
+          <button type="button" data-site="Gametime" aria-pressed="false">Gametime</button>
+        </div>
+      </div>
+      <p>Cheapest in the chosen level on one site, by days before each show. These two sites reprice slowly, so their logs reach back months: the February shows today sit on the same axis where November was at that distance. Whole level only, since these logs carry no section numbers.</p>
+      <div class="tc-legend">
+        <span data-show="2027-02-04">Thu Feb 4</span>
+        <span data-show="2027-02-06">Sat Feb 6</span>
+        <span data-show="2026-11-05">Thu Nov 5</span>
+        <span data-show="2026-11-07">Sat Nov 7</span>
+      </div>
+      <div class="tc-chart" data-draw="longview" data-source="site_curve"></div>
+    </section>
+
+    <section class="tc-card wide" id="february">
+      <h2>Feb 4 and Feb 6 so far</h2>
+      <p>Your two shows by calendar day. Solid for the whole level, dashed for the middle sections.</p>
+      <div class="tc-legend">
+        <span data-show="2027-02-04">Thu Feb 4</span>
+        <span data-show="2027-02-06">Sat Feb 6</span>
+        <span class="dashed">Middle sections</span>
+      </div>
+      <div class="tc-chart short" data-draw="feb" data-source="curve"></div>
+    </section>
+
+    <section class="tc-card wide" id="sites">
+      <h2>Cheapest by site, latest reading</h2>
+      <p>Whole-level prices per site. Only TicketSmarter lists section numbers, so the 104–108 and 204–208 columns come from it alone. TickPick and Ticketmaster resale block automated reads, so check those two by hand before buying.</p>
+      <div class="tc-table-wrap">
+        <table class="tc-table" data-source="sites" data-row-key="show,site">
+          <thead><tr>
+            <th data-field="show">Show</th>
+            <th data-field="site">Site</th>
+            <th data-field="cheapest_ga_floor">GA floor</th>
+            <th data-field="cheapest_100">100 level</th>
+            <th data-field="mid_100">104–108</th>
+            <th data-field="cheapest_200">200 level</th>
+            <th data-field="mid_200">204–208</th>
+          </tr></thead>
+          <tbody data-draw="sites"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <footer class="tc-notes">
+    <p><b>How it is collected.</b> A script running on GitHub's servers every 30 minutes, independent of any computer, reads TrackaLacker's public price pages for each show, plus the change logs of listings that moved. TicketSmarter's section-by-section list is the same public feed its event page loads. Nothing logs in, buys or gets past a captcha.</p>
+    <p><b>Middle sections.</b> 104–108 and 204–208 face the middle of the stage. Metallica's own Diamond packages use 103–108 and 203–209 for the same block. TicketSmarter prices include its service fee, and TrackaLacker reports each site's price with fees where the site shows them, so compare a line with itself over time.</p>
+  </footer>
+</div>
+
+<script>
+  const SHOWS = {
+    '2026-11-05': { name: 'Thu Nov 5', color: 0 },
+    '2026-11-07': { name: 'Sat Nov 7', color: 1 },
+    '2027-02-04': { name: 'Thu Feb 4', color: 2 },
+    '2027-02-06': { name: 'Sat Feb 6', color: 3 },
+  };
+  // zone = the row label in zones.csv; col = the whole-level column in curve.csv and site_curve.csv.
+  const ZONES = {
+    ga: { name: 'GA floor', zone: 'GA floor', col: 'cheapest_ga_floor' },
+    l100: { name: '100 level, sections 104–108', zone: '100s 104-108', col: 'cheapest_100' },
+    l200: { name: '200 level, sections 204–208', zone: '200s 204-208', col: 'cheapest_200' },
+  };
+  const NUMS = ['hours_out', 'days_out', 'cheapest', 'cheapest_ga_floor', 'cheapest_100', 'cheapest_200', 'cheapest_400', 'tickets_listed', 'listings_known', 'cheapest_pair', 'tickets'];
+  const num = (v) => (v === '' || v == null ? null : Number(v));
+  const usd = (v) => (v == null || !isFinite(v) ? '—' : '$' + d3.format(',.0f')(v));
+  const pct = (v) => (v == null || !isFinite(v) ? '—' : (v > 0 ? '+' : '') + d3.format('.0%')(v));
+  window.tcZone = 'ga';
+  const Z = () => ZONES[window.tcZone];
+
+  const parse = (rows) => rows.map((r) => {
+    const o = { ...r, at: new Date(r.at) };
+    for (const k of NUMS) if (k in r) o[k] = num(r[k]);
+    return o;
+  });
+  window.tcCurve = () => { const d = dash.data('curve'); return d.status === 'ok' ? parse(d.data) : null; };
+  window.tcZones = () => { const d = dash.data('zones'); return d.status === 'ok' ? parse(d.data) : null; };
+
+  dash.calc('checkpoints', {
+    title: 'Price by time before the show',
+    description: 'Cheapest ticket per zone at fixed times before each November show: whole level from the hourly 5-site curve, middle sections from the TicketSmarter polls (nearest poll within an hour), with the change against the first checkpoint that has a price.',
+    inputs: ['curve', 'zones'],
+    fn: (curve, zones) => {
+      const marks = [['1 week', 168], ['5 days', 120], ['4 days', 96], ['3 days', 72], ['2 days', 48], ['1 day', 24], ['12 hours', 12], ['6 hours', 6], ['2 hours', 2], ['Showtime', 0]];
+      const levelAt = (show, col, h) => {
+        const r = curve.find((x) => x.show === show && Number(x.hours_out) === h);
+        return r && r[col] !== '' && r[col] != null ? Number(r[col]) : null;
+      };
+      const midAt = (show, zone, h) => {
+        let best = null;
+        for (const r of zones) {
+          if (r.show !== show || r.zone !== zone || r.cheapest === '' || r.cheapest == null) continue;
+          const dist = Math.abs(Number(r.hours_out) - h);
+          if (dist <= 1 && (!best || dist < best.dist)) best = { dist, v: Number(r.cheapest) };
+        }
+        return best ? best.v : null;
+      };
+      const out = [];
+      for (const [key, z] of Object.entries(ZONES)) {
+        const rows = marks.map(([checkpoint, h]) => ({
+          zone: key, checkpoint,
+          nov5_level: levelAt('2026-11-05', z.col, h), nov5_mid: midAt('2026-11-05', z.zone, h),
+          nov7_level: levelAt('2026-11-07', z.col, h), nov7_mid: midAt('2026-11-07', z.zone, h),
+        }));
+        const first7 = rows.find((r) => r.nov7_level != null)?.nov7_level;
+        const firstMid = rows.find((r) => r.nov7_mid != null)?.nov7_mid;
+        for (const r of rows) {
+          r.nov7_level_ch = r.nov7_level != null && first7 ? (r.nov7_level - first7) / first7 : null;
+          r.nov7_mid_ch = r.nov7_mid != null && firstMid ? (r.nov7_mid - firstMid) / firstMid : null;
+          out.push(r);
+        }
+      }
+      return out;
+    },
+  });
+
+  const lastZone = (rows, show) => rows && rows.filter((r) => r.show === show && r.zone === Z().zone && r.cheapest != null).at(-1);
+  const lastLevel = (rows, show) => rows && rows.filter((r) => r.show === show && r[Z().col] != null).at(-1);
+  const outText = (h, d) => (h <= 0 ? 'at showtime' : h < 48 ? `${Math.round(h)} h out` : `${Math.round(d)} days out`);
+
+  dash.draw('zonename', (el) => { el.textContent = Z().name; });
+  dash.draw('tile', (el) => {
+    const r = lastZone(window.tcZones(), el.dataset.show);
+    el.textContent = r ? usd(r.cheapest) : '—';
+  });
+  dash.draw('tilesub', (el) => {
+    const r = lastZone(window.tcZones(), el.dataset.show);
+    const lv = lastLevel(window.tcCurve(), el.dataset.show);
+    if (!r && !lv) { el.textContent = '—'; return; }
+    const parts = [];
+    if (r) parts.push(outText(r.hours_out, r.days_out), `2 together ${usd(r.cheapest_pair)}`);
+    if (lv && window.tcZone !== 'ga') parts.push(`anywhere in level ${usd(lv[Z().col])}`);
+    if (lv && window.tcZone === 'ga') parts.push(`5-site low ${usd(lv[Z().col])}`);
+    el.textContent = parts.join(' · ');
+  });
+  for (const el of document.querySelectorAll('.tc-legend span[data-show]')) el.style.setProperty('--sw', dash.colors[SHOWS[el.dataset.show].color]);
+  dash.draw('feb6now', (el) => {
+    const r = lastZone(window.tcZones(), '2027-02-06');
+    el.textContent = r ? usd(r.cheapest) : '—';
+  });
+  dash.draw('feb6days', (el) => {
+    const r = lastZone(window.tcZones(), '2027-02-06');
+    el.textContent = r ? String(Math.round(r.days_out)) : '—';
+  });
+  dash.draw('nov7move', (el) => {
+    const d = dash.data('checkpoints');
+    const last = lastLevel(window.tcCurve(), '2026-11-07');
+    if (d.status !== 'ok' || !last) { el.textContent = '—'; return; }
+    const first = d.data.find((r) => r.zone === window.tcZone && r.nov7_level != null);
+    if (!first) { el.textContent = '—'; return; }
+    const now = last[Z().col];
+    el.textContent = `${pct((now - first.nov7_level) / first.nov7_level)} (${usd(first.nov7_level)} at ${first.checkpoint} out, ${usd(now)} now)`;
+  });
+
+  // Shared line chart: series = [{show, dashed, pts:[{x, y}]}]
+  function lineChart(el, series, opt) {
+    const W = Math.max(280, el.clientWidth), H = opt.height;
+    el.replaceChildren();
+    series = series.filter((s) => s.pts.some((p) => p.y != null));
+    const all = series.flatMap((s) => s.pts).filter((p) => p.y != null);
+    if (!all.length) return;
+    const svg = d3.select(el).append('svg').attr('width', '100%').attr('viewBox', `0 0 ${W} ${H}`).attr('role', 'img').attr('aria-label', opt.label);
+    const yMax = d3.max(all, (p) => p.y), yMin = d3.min(all, (p) => p.y);
+    const pad = Math.max(1, yMax - yMin);
+    const lo = yMin - pad * 0.1;
+    const y = d3.scaleLinear([opt.allowNegative ? Math.min(0, lo) : Math.max(0, lo), Math.max(opt.allowNegative ? 0 : -Infinity, yMax + pad * 0.08)], [H - 26, 8]).nice();
+    // Measure the widest y tick to set the left margin.
+    const probe = svg.append('text').attr('font-size', 12).text(opt.yFmt(y.domain()[1]));
+    const left = Math.ceil(probe.node().getComputedTextLength()) + 10;
+    probe.remove();
+    const right = opt.endLabels ? 74 : 12;
+    const x = opt.xScale([left, W - right]);
+    const g = svg.append('g');
+    g.append('g').selectAll('line').data(y.ticks(5)).join('line')
+      .attr('x1', left).attr('x2', W - right).attr('y1', (v) => y(v)).attr('y2', (v) => y(v))
+      .attr('stroke', 'var(--cds-chart-grid)');
+    g.append('g').selectAll('text').data(y.ticks(5)).join('text')
+      .attr('x', left - 8).attr('y', (v) => y(v)).attr('dy', '0.32em').attr('text-anchor', 'end')
+      .attr('font-size', 12).attr('fill', 'var(--color-fg-muted)').text(opt.yFmt);
+    const xAxis = g.append('g').attr('transform', `translate(0,${H - 26})`).call(opt.xAxis(x, W));
+    xAxis.attr('font-size', null).attr('font-family', null);
+    xAxis.select('.domain').attr('stroke', 'var(--cds-chart-axis)');
+    xAxis.selectAll('.tick line').attr('stroke', 'var(--cds-chart-axis)');
+    xAxis.selectAll('.tick text').attr('fill', 'var(--color-fg-muted)').attr('font-size', 12);
+    if (opt.ref != null) {
+      g.append('line').attr('x1', x(opt.ref)).attr('x2', x(opt.ref)).attr('y1', 8).attr('y2', H - 26)
+        .attr('stroke', 'var(--cds-chart-reference)').attr('stroke-dasharray', '3 3');
+    }
+    if (opt.allowNegative) {
+      g.append('line').attr('x1', left).attr('x2', W - right).attr('y1', y(0)).attr('y2', y(0)).attr('stroke', 'var(--cds-chart-axis)');
+    }
+    const line = d3.line().defined((p) => p.y != null).x((p) => x(p.x)).y((p) => y(p.y));
+    const labels = [];
+    for (const s of series) {
+      const c = dash.colors[SHOWS[s.show].color];
+      g.append('path').datum(s.pts).attr('fill', 'none').attr('stroke', c).attr('stroke-width', 2)
+        .attr('stroke-dasharray', s.dashed ? '5 4' : null)
+        .attr('stroke-linecap', 'round').attr('stroke-linejoin', 'round').attr('d', line);
+      const end = s.pts.filter((p) => p.y != null).at(-1);
+      if (end) {
+        g.append('circle').attr('cx', x(end.x)).attr('cy', y(end.y)).attr('r', 3.5).attr('fill', s.dashed ? 'var(--color-panel)' : c).attr('stroke', c).attr('stroke-width', 2);
+        if (opt.endLabels) labels.push({ x: x(end.x) + 8, y: y(end.y), text: opt.yFmt(end.y) });
+      }
+    }
+    // End labels: push apart so two lines ending close together stay readable.
+    labels.sort((a, b) => a.y - b.y);
+    for (let i = 1; i < labels.length; i++) if (Math.abs(labels[i].x - labels[i - 1].x) < 60 && labels[i].y - labels[i - 1].y < 14) labels[i].y = labels[i - 1].y + 14;
+    for (const l of labels) g.append('text').attr('x', l.x).attr('y', l.y).attr('dy', '0.32em').attr('font-size', 12).attr('fill', 'var(--color-fg)').text(l.text);
+    // Tooltip: nearest x across series.
+    const tip = document.createElement('div');
+    tip.className = 'tc-tip'; tip.hidden = true; el.append(tip);
+    const rule = g.append('line').attr('y1', 8).attr('y2', H - 26).attr('stroke', 'var(--cds-chart-axis)').attr('opacity', 0);
+    const dots = g.append('g');
+    const hide = () => { tip.hidden = true; rule.attr('opacity', 0); dots.selectAll('circle').remove(); };
+    svg.append('rect').attr('x', left).attr('y', 0).attr('width', W - right - left).attr('height', H - 26).attr('fill', 'transparent')
+      .on('pointermove', (ev) => {
+        const [mx] = d3.pointer(ev);
+        const xv = x.invert(mx);
+        const picks = series.map((s) => {
+          const pts = s.pts.filter((p) => p.y != null);
+          const i = d3.leastIndex(pts, (p) => Math.abs(+p.x - +xv));
+          return i == null ? null : { s, p: pts[i] };
+        }).filter((d) => d && Math.abs(x(d.p.x) - mx) < 24);
+        if (!picks.length) { hide(); return; }
+        const px = x(picks[0].p.x);
+        rule.attr('x1', px).attr('x2', px).attr('opacity', 1);
+        dots.selectAll('circle').data(picks).join('circle').attr('r', 4)
+          .attr('cx', (d) => x(d.p.x)).attr('cy', (d) => y(d.p.y)).attr('fill', (d) => dash.colors[SHOWS[d.s.show].color]);
+        tip.replaceChildren();
+        const head = document.createElement('div'); head.className = 'd'; head.textContent = opt.tipHead(picks[0].p); tip.append(head);
+        for (const d of picks) {
+          const row = document.createElement('div');
+          const sw = document.createElement('span'); sw.className = 'sw'; sw.style.background = dash.colors[SHOWS[d.s.show].color];
+          row.append(sw, `${d.s.name ?? SHOWS[d.s.show].name}${d.s.dashed ? ' middle' : ''}  ${opt.yFmt(d.p.y)}`);
+          tip.append(row);
+        }
+        tip.hidden = false;
+        const tw = tip.offsetWidth;
+        tip.style.left = Math.min(Math.max(0, px + 12), el.clientWidth - tw) + 'px';
+        tip.style.top = '4px';
+      })
+      .on('pointerleave', hide);
+  }
+
+  const outLabel = (h) => (h <= 0 ? 'Showtime' : h < 48 ? `${Math.round(h)} h before` : `${d3.format('.1f')(h / 24)} days before`);
+  // Solid whole-level series from curve.csv plus dashed middle-section series from zones.csv.
+  function bothSeries(shows, xOf, keep) {
+    const curve = window.tcCurve() || [], zones = window.tcZones() || [];
+    const z = Z(), out = [];
+    for (const show of shows) {
+      out.push({ show, pts: curve.filter((r) => r.show === show && keep(r)).map((r) => ({ x: xOf(r), y: r[z.col], h: r.hours_out, d: r.days_out })) });
+      out.push({ show, dashed: true, pts: zones.filter((r) => r.show === show && r.zone === z.zone && keep(r)).map((r) => ({ x: xOf(r), y: r.cheapest, h: r.hours_out, d: r.days_out })) });
+    }
+    return out;
+  }
+
+  dash.draw('countdown', (el) => {
+    if (!window.tcCurve()) { el.replaceChildren(); return; }
+    const series = bothSeries(['2026-11-05', '2026-11-07'], (r) => r.hours_out, (r) => r.hours_out <= 240 && r.hours_out >= 0);
+    const maxH = d3.max(series.flatMap((s) => s.pts), (p) => p.x) || 24;
+    lineChart(el, series, {
+      height: 288, label: 'Cheapest ticket in the chosen zone by hours before each November show', endLabels: true, ref: 0,
+      yFmt: usd,
+      xScale: (range) => d3.scaleLinear([Math.max(24, maxH), 0], range),
+      xAxis: (x, W) => d3.axisBottom(x).tickValues(d3.range(0, Math.max(24, maxH) + 1, 24).filter((v, i, a) => W > 520 || i % 2 === 0 || i === a.length - 1))
+        .tickFormat((h) => (h === 0 ? 'Show' : `${h / 24}d`)).tickSizeOuter(0),
+      tipHead: (p) => outLabel(p.h),
+    });
+  });
+
+  dash.draw('feb', (el) => {
+    if (!window.tcCurve()) { el.replaceChildren(); return; }
+    const series = bothSeries(['2027-02-04', '2027-02-06'], (r) => r.at, () => true);
+    const xs = series.flatMap((s) => s.pts.map((p) => p.x));
+    const [x0, x1] = d3.extent(xs);
+    lineChart(el, series, {
+      height: 208, label: 'Cheapest ticket in the chosen zone for Feb 4 and Feb 6 by date', endLabels: true,
+      yFmt: usd,
+      xScale: (range) => d3.scaleUtc([x0, +x1 - x0 < 864e5 ? new Date(+x0 + 864e5) : x1], range),
+      // Under three days of data, day-only labels repeat; show hours until the line is longer.
+      xAxis: (x, W) => d3.axisBottom(x).ticks(W > 520 ? 7 : 2).tickFormat(d3.utcFormat(+x1 - x0 < 3 * 864e5 ? '%b %-d %H:00' : '%b %-d')).tickSizeOuter(0),
+      tipHead: (p) => `${d3.utcFormat('%b %-d, %H:%M UTC')(p.x)} · ${Math.round(p.d)} days out`,
+    });
+  });
+
+  dash.draw('checkpoints', (tb) => {
+    const d = dash.data('checkpoints');
+    tb.replaceChildren();
+    if (d.status !== 'ok') return;
+    for (const r of d.data.filter((x) => x.zone === window.tcZone)) {
+      const tr = document.createElement('tr');
+      tr.dataset.key = `${encodeURIComponent(r.zone)},${encodeURIComponent(r.checkpoint)}`;
+      const cells = [[r.checkpoint], [usd(r.nov5_level)], [usd(r.nov5_mid)], [usd(r.nov7_level)], [pct(r.nov7_level_ch), r.nov7_level_ch], [usd(r.nov7_mid)], [pct(r.nov7_mid_ch), r.nov7_mid_ch]];
+      for (const [text, v] of cells) {
+        const td = document.createElement('td');
+        td.textContent = text;
+        if (v != null && v < -0.005) td.className = 'down';
+        if (v != null && v > 0.005) td.className = 'up';
+        tr.append(td);
+      }
+      tb.append(tr);
+    }
+  });
+
+  dash.draw('sites', (tb) => {
+    const d = dash.data('sites');
+    tb.replaceChildren();
+    if (d.status !== 'ok') return;
+    const order = Object.keys(SHOWS);
+    const rows = d.data.slice().sort((a, b) => order.indexOf(a.show) - order.indexOf(b.show) || (num(a[Z().col]) ?? 1e9) - (num(b[Z().col]) ?? 1e9));
+    for (const r of rows) {
+      const tr = document.createElement('tr');
+      tr.dataset.key = `${encodeURIComponent(r.show)},${encodeURIComponent(r.site)}`;
+      for (const text of [r.show, r.site, usd(num(r.cheapest_ga_floor)), usd(num(r.cheapest_100)), usd(num(r.mid_100)), usd(num(r.cheapest_200)), usd(num(r.mid_200))]) {
+        const td = document.createElement('td'); td.textContent = text; tr.append(td);
+      }
+      tb.append(tr);
+    }
+  });
+
+  // Pass rows are keyed by weekend; borrow the colour of each weekend's second show.
+  const WEEKENDS = { '2026-11': { name: 'Nov 5 + 7', show: '2026-11-07' }, '2027-02': { name: 'Feb 4 + 6', show: '2027-02-06' } };
+  const passRows = () => {
+    const d = dash.data('pass_compare');
+    return d.status === 'ok' ? d.data.filter((r) => r.zone === Z().zone) : null;
+  };
+  dash.draw('passtable', (tb) => {
+    const rows = passRows();
+    tb.replaceChildren();
+    if (!rows) return;
+    for (const wk of Object.keys(WEEKENDS)) {
+      const r = rows.filter((x) => x.weekend === wk).at(-1);
+      if (!r) continue;
+      const tr = document.createElement('tr');
+      tr.dataset.key = `${encodeURIComponent(r.weekend)},${encodeURIComponent(r.zone)}`;
+      const saving = num(r.saving), share = num(r.saving_pct);
+      const cells = [[WEEKENDS[wk].name], [usd(num(r.pass))], [usd(num(r.pass_pair))], [usd(num(r.day1))], [usd(num(r.day2))], [usd(num(r.singles))],
+        [saving == null ? '—' : `${saving < 0 ? '−' : ''}${usd(Math.abs(saving))} (${pct(share)})`, saving == null ? null : -saving]];
+      for (const [text, v] of cells) {
+        const td = document.createElement('td');
+        td.textContent = text;
+        if (v != null && v < -0.5) td.className = 'down';
+        if (v != null && v > 0.5) td.className = 'up';
+        tr.append(td);
+      }
+      tb.append(tr);
+    }
+  });
+  dash.draw('passchart', (el) => {
+    const rows = passRows();
+    if (!rows) { el.replaceChildren(); return; }
+    const series = Object.entries(WEEKENDS).map(([wk, w]) => ({
+      show: w.show, name: w.name,
+      pts: rows.filter((r) => r.weekend === wk).map((r) => ({ x: num(r.days_out), y: num(r.saving_pct) })),
+    }));
+    const maxD = Math.ceil(d3.max(series.flatMap((s) => s.pts), (p) => p.x) || 7);
+    lineChart(el, series, {
+      height: 208, label: 'How much cheaper a 2-day pass is than two single nights, by days before the first show', endLabels: true, ref: 0, allowNegative: true,
+      yFmt: d3.format('+.0%'),
+      xScale: (range) => d3.scaleLinear([maxD, 0], range),
+      xAxis: (x, W) => d3.axisBottom(x).ticks(W > 520 ? 8 : 4).tickFormat((v) => (v === 0 ? 'Show' : `${v}d`)).tickSizeOuter(0),
+      tipHead: (p) => `${d3.format('.1f')(p.x)} days before night 1`,
+    });
+  });
+
+  window.tcSite = 'VividSeats';
+  dash.draw('longview', (el) => {
+    const d = dash.data('site_curve');
+    if (d.status !== 'ok') { el.replaceChildren(); return; }
+    const col = Z().col;
+    const rows = d.data.filter((r) => r.site === window.tcSite);
+    const series = Object.keys(SHOWS).map((show) => ({
+      show,
+      pts: rows.filter((r) => r.show === show).map((r) => ({ x: num(r.days_out), y: num(r[col]) })),
+    }));
+    const maxD = Math.ceil(d3.max(series.flatMap((s) => s.pts), (p) => p.x) || 30);
+    lineChart(el, series, {
+      height: 288, label: 'Cheapest in the chosen level on one site by days before each show', endLabels: true, ref: 0,
+      yFmt: usd,
+      xScale: (range) => d3.scaleLinear([maxD, 0], range),
+      xAxis: (x, W) => d3.axisBottom(x).tickValues(d3.range(0, maxD + 1, W > 520 ? 20 : maxD > 100 ? 50 : 25)).tickFormat((v) => (v === 0 ? 'Show' : `${v}d`)).tickSizeOuter(0),
+      tipHead: (p) => `${d3.format('.1f')(p.x)} days before`,
+    });
+  });
+
+  const ZONE_DRAWS = ['passtable', 'passchart', 'zonename', 'tile', 'tilesub', 'feb6now', 'feb6days', 'nov7move', 'countdown', 'feb', 'checkpoints', 'sites', 'longview'];
+  for (const b of document.querySelectorAll('.tc-zone button[data-zone]')) {
+    b.addEventListener('click', () => {
+      window.tcZone = b.dataset.zone;
+      for (const o of document.querySelectorAll('.tc-zone button[data-zone]')) o.setAttribute('aria-pressed', String(o === b));
+      for (const name of ZONE_DRAWS) dash.draw(name);
+    });
+  }
+  for (const b of document.querySelectorAll('.tc-seg button[data-site]')) {
+    b.addEventListener('click', () => {
+      window.tcSite = b.dataset.site;
+      for (const o of document.querySelectorAll('.tc-seg button[data-site]')) o.setAttribute('aria-pressed', String(o === b));
+      dash.draw('longview');
+    });
+  }
+</script>

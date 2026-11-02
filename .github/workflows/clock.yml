@@ -1,0 +1,39 @@
+# Logs Metallica-at-Sphere resale prices and official package status every 30 minutes.
+# Public repo: standard GitHub-hosted runners are free here, so this doesn't touch the 2000-minute pool.
+# One trigger only. Each run stays under ~10 minutes (history pull is time-boxed), so runs don't overlap.
+name: ticket clock
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: clock
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Last show is Sat Feb 6 2027. The Claude refresh task disables this workflow on Feb 8 (gh workflow disable).
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Collect prices and package status
+        run: node watch.mjs --history --budget 480
+      - name: Build CSVs
+        run: node build.mjs
+      - name: Commit data
+        run: |
+          git config user.name 'ticket-clock'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -q -m "data $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push
