@@ -1,5 +1,5 @@
 {
- "t": "2026-11-02T20:07:09.173Z",
+ "t": "2026-11-02T20:36:45.892Z",
  "vibee": {
   "fingerprint": "f59f44c024c8",
   "tickets": [
@@ -43,7 +43,8 @@
     "Signature: Sections 405-407",
     "0:401:31924,0:40:31924"
    ]
-  ]
+  ],
+  "error": "curl 6 https://vibee.com/events/metallica-2.4.27-2.6.27-6C593C83"
  },
  "changedAt": "2026-11-02T12:10:48.808Z"
 }
