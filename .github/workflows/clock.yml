@@ -1,6 +1,9 @@
 # Logs Metallica-at-Sphere resale prices and official package status every 30 minutes.
-# Public repo: standard GitHub-hosted runners are free here, so this doesn't touch the 2000-minute pool.
-# One trigger only. A run takes about a minute.
+# GitHub fires scheduled runs late or not at all when it's busy (3 runs in 22 h on 2026-11-02/03), so one run
+# stays up for about 5.5 hours and polls on every :00 and :30 itself. The cron only has to land once in that
+# window: with the concurrency group below, the next run waits in the queue and starts when this one ends.
+# Public repo: standard GitHub-hosted runners are free and unlimited here. If this repo ever goes private,
+# this design burns the 2000-minute pool in under a week; switch back to one poll per run first.
 name: ticket clock
 
 on:
@@ -18,7 +21,7 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 350
     # Last show is Sat Feb 6 2027. The Claude refresh task disables this workflow on Feb 8 (gh workflow disable).
     steps:
       - uses: actions/checkout@v4
@@ -26,18 +29,24 @@ jobs:
         with:
           node-version: 22
       # TicketSmarter (sections, 2-day passes) and SUPER. TrackaLacker and Vibee refuse GitHub's servers;
-      # Matías' laptop adds those to data/tl/ when it's on (laptop.mjs).
-      - name: Collect prices and package status
-        run: node watch.mjs --part cloud
-      - name: Build CSVs
-        run: node build.mjs
-      - name: Commit data
+      # Matías' laptop adds those to data/tl/ when it's on (laptop.mjs), so pull before each build.
+      - name: Poll every 30 minutes for about 5.5 hours
         run: |
           git config user.name 'ticket-clock'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add data
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -q -m "data $(date -u +%Y-%m-%dT%H:%MZ)"
-          # The laptop pushes to other files; on a race, rebase over it and try again.
-          for i in 1 2 3; do git push -q && exit 0; git pull -q --rebase; done
-          exit 1
+          end=$(( $(date +%s) + 330 * 60 ))
+          while :; do
+            git pull -q --rebase || true
+            node watch.mjs --part cloud || echo "poll failed"
+            node build.mjs || echo "build failed"
+            git add data
+            if ! git diff --cached --quiet; then
+              git commit -q -m "data $(date -u +%Y-%m-%dT%H:%MZ)"
+              # The laptop pushes to other files; on a race, rebase over it and try again.
+              for i in 1 2 3; do git push -q && break; git pull -q --rebase; done
+            fi
+            # Sleep to the next :00 or :30, and stop if that would run past the window.
+            next=$(( ($(date +%s) / 1800 + 1) * 1800 ))
+            [ "$next" -ge "$end" ] && break
+            sleep $(( next - $(date +%s) ))
+          done
