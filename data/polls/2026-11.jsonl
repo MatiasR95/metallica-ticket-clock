@@ -814,3 +814,9 @@
 {"t":"2026-11-06T03:30:00.657Z","show":"2027-02-06","src":"ticketsmarter","ts":{"low":516.62,"high":7655.85,"avail":true},"sections":null}
 {"t":"2026-11-06T03:30:00.657Z","show":"pass-2026-11","src":"ticketsmarter","ts":{"low":669.6,"high":1937.25,"avail":true},"sections":null}
 {"t":"2026-11-06T03:30:00.657Z","show":"pass-2027-02","src":"ticketsmarter","ts":{"low":756,"high":15311.7,"avail":true},"sections":null}
+{"t":"2026-11-06T04:00:01.025Z","show":"2026-11-05","src":"ticketsmarter","ts":{"low":448.88,"high":163977.66,"avail":true},"sections":null}
+{"t":"2026-11-06T04:00:01.025Z","show":"2026-11-07","src":"ticketsmarter","ts":{"low":429.98,"high":4500,"avail":true},"sections":null}
+{"t":"2026-11-06T04:00:01.025Z","show":"2027-02-04","src":"ticketsmarter","ts":{"low":445.37,"high":7655.85,"avail":true},"sections":null}
+{"t":"2026-11-06T04:00:01.025Z","show":"2027-02-06","src":"ticketsmarter","ts":{"low":516.62,"high":7655.85,"avail":true},"sections":null}
+{"t":"2026-11-06T04:00:01.025Z","show":"pass-2026-11","src":"ticketsmarter","ts":{"low":669.6,"high":1937.25,"avail":true},"sections":null}
+{"t":"2026-11-06T04:00:01.025Z","show":"pass-2027-02","src":"ticketsmarter","ts":{"low":756,"high":15311.7,"avail":true},"sections":null}
