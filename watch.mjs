@@ -89,6 +89,11 @@ async function pollSections(show) {
     if (t.tgType !== 1) continue // 3 = parking and hotel shuttles
     const key = sectionKey(t.tgUserSec ?? '')
     if (!key) continue
+    // Since 2026-11-09 Matías only wants rows 1-20 in the 100s and 200s (front of the section). GA/PIT have no row.
+    if (/^[12]\d\d$/.test(key)) {
+      const row = parseInt(String(t.tgUserRow ?? '').trim(), 10)
+      if (!(row >= 1 && row <= 20)) continue
+    }
     const price = Math.round((t.tgPrice + (t.tgServiceFee ?? 0)) * 100) / 100
     const s = (secs[key] ??= [null, null, 0, 0])
     if (s[0] == null || price < s[0]) s[0] = price
