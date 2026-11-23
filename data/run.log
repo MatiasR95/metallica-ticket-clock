@@ -865,3 +865,4 @@
 2026-11-23T05:30:00.732Z 2027-02-04 sections: curl 28 https://www.ticketsmarter.com/api/tickets/tn?EventID=3327258 | 2027-02-06 sections: curl 28 https://www.ticketsmarter.com/api/tickets/tn?EventID=3327259 | pass-2027-02 sections: curl 28 https://www.ticketsmarter.com/api/tickets/tn?EventID=3327270 | super sold out
 2026-11-23T06:00:00.671Z 2027-02-04: 40 sections | 2027-02-06: 37 sections | super sold out
 2026-11-23T06:30:00.500Z 2027-02-04: 40 sections | 2027-02-06: 37 sections | super sold out
+2026-11-23T07:00:01.107Z 2027-02-04: 40 sections | 2027-02-06: 37 sections | super sold out
