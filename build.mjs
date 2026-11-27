@@ -27,8 +27,9 @@ const isFloor = (z) => /floor|general admission|gaflo/i.test(z)
 const isPackage = (z) => /package|deluxe|diamond|gold|reserved/i.test(z)
 const isUpper = (z) => /^400 level$/i.test(z)
 // The zones Matías wants: GA floor and the middle five sections of the 100 and 200 levels (TicketSmarter
-// has sections; Vibee's own "Diamond" tiers put the centre at 103-108 and 203-209).
-const FOCUS = { 'GA floor': ['GA'], '100s 104-108': ['104', '105', '106', '107', '108'], '200s 204-208': ['204', '205', '206', '207', '208'] }
+// has sections; Vibee's own "Diamond" tiers put the centre at 103-108 and 203-209). Since 2026-11-27
+// Thursday Feb 4 is sections 103-109 only (rows 1-20, filtered in watch.mjs).
+const FOCUS = { 'GA floor': ['GA'], '100s 103-109': ['103', '104', '105', '106', '107', '108', '109'], '100s 104-108': ['104', '105', '106', '107', '108'], '200s 204-208': ['204', '205', '206', '207', '208'] }
 const showStart = Object.fromEntries(SHOWS.map((s) => [s.id, Date.parse(s.start)]))
 
 // Fold the polls into each listing's change log so the curve reaches the latest run.
